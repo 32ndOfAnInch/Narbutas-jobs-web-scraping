@@ -9,6 +9,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
+from webscrape_job_opening import (get_output_filename, save_to_csv,
+                                   scrape_job_details)
+
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 driver.get("https://karjera.narbutas.lt/jobs")
 
@@ -16,42 +19,7 @@ driver.get("https://karjera.narbutas.lt/jobs")
 def is_cyrillic(text):
     return bool(re.search(r'[\u0400-\u04FF]', text))
 
-def scrape_job_details(driver, url):
-    driver.get(url)
-
-    job_info = {
-        "Responsibilities": [],
-        "Requirements": [],
-        "Offer": [],
-        "Salary": ""
-    }
-
-    # Find all strong tags
-    sections = driver.find_elements(By.CSS_SELECTOR, "p strong")
-
-    for strong_tag in sections:
-        title = strong_tag.text.strip()
-
-        if title.startswith("PAGRINDINĖS ATSAKOMYBĖS"):
-            ul = strong_tag.find_element(By.XPATH, "./ancestor::p/following-sibling::ul[1]")
-            job_info["Responsibilities"] = [li.text.strip() for li in ul.find_elements(By.TAG_NAME, "li")]
-
-        elif title.startswith("SĖKMINGAM DARBUI"):
-            ul = strong_tag.find_element(By.XPATH, "./ancestor::p/following-sibling::ul[1]")
-            job_info["Requirements"] = [li.text.strip() for li in ul.find_elements(By.TAG_NAME, "li")]
-
-        elif title.startswith("KOMPANIJA SIŪLO"):
-            ul = strong_tag.find_element(By.XPATH, "./ancestor::p/following-sibling::ul[1]")
-            job_info["Offer"] = [li.text.strip() for li in ul.find_elements(By.TAG_NAME, "li")]
-
-        elif title.startswith("Atlyginimas"):
-            # Salary text is in the same <p>
-            salary_text = strong_tag.find_element(By.XPATH, "./ancestor::p").text
-            job_info["Salary"] = salary_text.replace("Atlyginimas", "").strip()
-
-    return job_info
-
-# --- 1. Expansion phase ---
+# Expanding load 10 more
 while True:
     try:
         show_more = WebDriverWait(driver, 3).until(
@@ -72,21 +40,34 @@ while True:
     except TimeoutException:
         break
 
-# --- 2. Scraping phase ---
-jobs_data = []
+# Collect links and scrape
+
+job_links = []
 for el in driver.find_elements(By.CSS_SELECTOR, "#jobs_list_container li a"):
     title_el = el.find_element(By.CSS_SELECTOR, "span.text-block-base-link")
     title = title_el.text.strip() or title_el.get_attribute("title").strip()
 
+    # remove
     if title == "Karjeros galimybės ateityje":
         continue
 
+    # remove jobs for foreigners
     if is_cyrillic(title):
         continue
 
     link = el.get_attribute("href")
-    jobs_data.append({"Title": title, "Link": link})
+    job_links.append((title, link))
 
-print(len(jobs_data), "jobs found")
-print(jobs_data)
+# iterate over job links
+
+output_file = get_output_filename()
+job_number = 1
+for title, link in job_links:
+    details = scrape_job_details(driver, link)
+    details["Title"] = title
+    save_to_csv(details, job_number, output_file)
+    job_number += 1
+
+print(f"Saved {job_number-1} jobs into {output_file}")
+
 driver.quit()
