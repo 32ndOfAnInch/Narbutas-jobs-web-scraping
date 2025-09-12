@@ -9,3 +9,28 @@ To practice using the Selenium library for scraping a large company's careers pa
 - It then loops through the list of jobs and scrapes all necessary information from each individual job page.  
 - All job openings are saved into a CSV file with a unique filename (containing the current date and an incremental number if a file with the same date already exists).  
 - Data is written using the **pandas** library.  
+---
+
+## ⚙️ Requirements
+
+- Python **3.9+**
+- Google Chrome browser installed
+- `chromedriver` handled automatically by `webdriver-manager`
+
+---
+
+## 📥 Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/32ndOfAnInch/Narbutas-jobs-web-scraping.git
+cd narbutas-jobs-web-scraping
+
+# Create a virtual environment (optional but recommended)
+python -m venv venv
+source venv/bin/activate   # Linux/macOS
+venv\Scripts\activate      # Windows
+
+# Install dependencies
+pip install -r requirements.txt
